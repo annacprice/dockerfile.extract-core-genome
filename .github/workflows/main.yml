@@ -1,0 +1,35 @@
+name: docker-build
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - tag.json
+      
+  workflow_dispatch:
+  
+jobs:
+  build:
+    env:
+      recipe_name: Dockerfile
+      image_name: extractcoregenome
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Get image tags
+        id: image_tags
+        run: |
+          echo -n ::set-output name=IMAGE_TAGS::
+          TAGS=$(jq -r '.version' tag.json)
+          TAGS+=('latest')
+          ( IFS=$','; echo "${TAGS[*]}" )
+      - name: Build and publish image to Quay
+        uses: docker/build-push-action@v1
+        with:
+          dockerfile: ${{ env.recipe_name }}
+          registry: ${{ secrets.REGISTRY_SERVER }}
+          repository: ${{ secrets.REGISTRY_NAMESPACE }}/${{ env.image_name }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+          tags: "${{ steps.image_tags.outputs.IMAGE_TAGS }}"
